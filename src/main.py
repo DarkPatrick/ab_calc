@@ -1,53 +1,26 @@
-from src.metabase import Mb_Client
-from dotenv import dotenv_values
+# from src.metabase import Mb_Client
+# from dotenv import dotenv_values
 import pandas as pd
 
+from sql_worker import SqlWorker
+from confluence import ConfluenceWorker
 
-def get_query(query_name, params) -> str:
-        sql_req = open(f"queries/{query_name}.sql").read()
-        return sql_req.format(**params)
+sql_worker: SqlWorker = SqlWorker()
+exp_4821_info: dict = sql_worker.get_experiment(4821)
+exp_4821_members = sql_worker.get_users(exp_4821_info)
+exp_4821_members.to_csv('exp_4821_m.csv')
+exp_4821_subscriptions = sql_worker.get_subscriptions(exp_4821_info)
+exp_4821_subscriptions.to_csv('exp_4821_s.csv')
 
-def get_payload(query) -> dict:
-    payload: dict = {
-        "database": 2,
-        "type": "native",
-        "format_rows": False,
-        "pretty": False,
-        "native": {
-            "query": query
-        }
-    }
-    return payload
+# print(exp_4821)
+# print(exp_4821.configuration)
+# exp_4821.to_csv('exp_4821.csv')
+# print(exp_4821.columns)
 
-secrets: dict = dotenv_values(".env")
-
-mb_client: Mb_Client = Mb_Client(
-    url=f"{secrets['mb_url']}",
-    username=secrets["username"],
-    password=secrets["password"]
-)
-
-query = get_query("get_exp_info", params=dict({"id": 4821}))
-payload = get_payload(query)
-query_result = mb_client.post("dataset/json", payload)
-# query_result = mb_client.post("dataset/csv", payload)
-# query_result = mb_client.post("dataset/native", payload)
-df = pd.json_normalize(query_result)
-int(df.id[0].replace(',', ''))
+# active_exps: pd.DataFrame = sql_worker.get_active_experiments()
+# print(active_exps)
 
 
-payload: dict = {
-    "database": 2,
-    "type": "native",
-    "format_rows": False,
-    "native": {
-        "query": """
-            select count()
-            from default.ug_rt_events_app
-            where date = today()
-        """,
-    },
-}
-print(mb_client.post("dataset/json", payload))
-
-# get active exps
+# confluence_worker: ConfluenceWorker = ConfluenceWorker()
+# page_494814392 = confluence_worker.get_page_info("https://alice.mu.se/pages/viewpage.action?pageId=494814392")
+# print(page_494814392)
