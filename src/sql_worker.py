@@ -67,11 +67,13 @@ class SqlWorker():
         full_df = pd.DataFrame({})
         exp_start_dt = datetime.datetime.fromtimestamp(exp_info["date_start"])
         exp_end_dt = datetime.datetime.today()
-        if exp_info["date_end"] > 0:
-            exp_end_dt = datetime.datetime.fromtimestamp(exp_info["date_start"])
+        if exp_info["date_end"] > exp_info["date_start"]:
+            exp_end_dt = datetime.datetime.fromtimestamp(exp_info["date_end"])
+            print(exp_end_dt)
         # print(exp_start_dt.date())
         # print(exp_end_dt.date())
         # print((exp_end_dt.date() - exp_start_dt.date()).days + 1)
+        print((exp_end_dt.date() - exp_start_dt.date()).days + 1)
         for day in range((exp_end_dt.date() - exp_start_dt.date()).days + 1):
             current_day = exp_start_dt + datetime.timedelta(days=day)
             print(current_day.strftime('%Y-%m-%d'))
@@ -91,6 +93,8 @@ class SqlWorker():
                 "source": "all"
             })
             query = self.get_query("get_exp_users", params)
+            # print(query)
+            # return
             payload = self.get_payload(query)
             query_result = self._mb_client.post("dataset/json", payload)
             df = pd.json_normalize(query_result)
@@ -98,6 +102,9 @@ class SqlWorker():
             df.session_id = df.session_id.apply(self.convert_string_int2int)
             df.exp_start_dt = df.exp_start_dt.apply(self.convert_string_int2int)
             full_df = pd.concat([full_df, df], ignore_index=True)
+            full_df = full_df.sort_values(by=['unified_id', 'exp_start_dt'])
+            full_df = full_df.drop_duplicates(subset='unified_id', keep='first')
+
         return full_df
 
     def get_subscriptions(self, exp_info: pd.DataFrame) -> pd.DataFrame:

@@ -1,0 +1,168 @@
+exp_arpu:
+  title: arpu
+  mean: exp_arpu
+  len: members
+  var: exp_arpu_var
+dau_arpu:
+  title: dau arpu
+  mean: dau_arpu
+  len: dau
+  var: dau_arpu
+aov:
+  title: aov
+  mean: aov
+  len: charge_cnt
+  var: aov_var
+arppu:
+  title: arppu
+  mean: arppu
+  len: buyer_cnt
+  var: arppu_var
+member -> install, %:
+  title: install cr, %
+  mean: member -> install, %
+  len: members
+  distribution: bernoulli
+  percent: True
+install -> open, %:
+  title: open cr, %
+  mean: install -> open, %
+  len: installs
+  distribution: bernoulli
+  percent: True
+member -> subscriber, %:
+  title: access cr, %
+  mean: member -> subscriber, %
+  len: members
+  distribution: bernoulli
+  percent: True
+member -> buyer, %:
+  title: charge cr, %
+  mean: member -> buyer, %
+  len: members
+  distribution: bernoulli
+  percent: True
+trial -> charge, %:
+  title: trial -> charge, %
+  mean: trial -> charge, %
+  len: access_trial_cnt
+  distribution: bernoulli
+  percent: True
+trial subscriber -> buyer, %:
+  title: trial subscriber -> charge, %
+  mean: trial subscriber -> buyer, %
+  len: trial_subscriber_cnt
+  distribution: bernoulli
+  percent: True
+accesses per subscriber:
+  title: accesses per subscriber
+  mean: accesses per subscriber
+  len: access_trial_cnt
+  distribution: poisson
+  truncated: 1
+subscriber -> buyer, %:
+  title: subscriber -> buyer, %
+  mean: subscriber -> buyer, %
+  len: subscriber_cnt
+  distribution: bernoulli
+  percent: True
+subscription -> charge, %:
+  title: subscription -> charge, %
+  mean: subscription -> charge, %
+  len: access_cnt
+  distribution: bernoulli
+  percent: True
+charge -> 14d cancel, %:
+  title: charge -> 14d cancel, %
+  mean: charge -> 14d cancel, %
+  len: charge_cnt
+  distribution: bernoulli
+  percent: True
+charge -> 1m cancel, %:
+  title: charge -> 1m cancel, %
+  mean: charge -> 1m cancel, %
+  len: charge_cnt
+  distribution: bernoulli
+  percent: True
+retention 1d, %:
+  title: retention 1d, %
+  mean: retention 1d, %
+  len: members
+  distribution: bernoulli
+  percent: True
+retention 7d, %:
+  title: retention 7d, %
+  mean: retention 7d, %
+  len: members
+  distribution: bernoulli
+  percent: True
+members with Long Tab, %:
+  title: members with Long Tab, %
+  mean: members with Long Tab, %
+  len: members
+  distribution: bernoulli
+  percent: True
+Pageview per session:
+  title: Pageview per session
+  mean: Pageview per session
+  len: sessions
+  var: Pageview per session, var
+bounce_5s_rate:
+  title: bounce 5s, %
+  mean: bounce_5s_rate
+  len: sessions
+  distribution: bernoulli
+  percent: True
+bounce_15s_rate:
+  title: bounce 15s, %
+  mean: bounce_15s_rate
+  len: sessions
+  distribution: bernoulli
+  percent: True
+bounce_30s_rate:
+  title: bounce 30s, %
+  mean: bounce_30s_rate
+  len: sessions
+  distribution: bernoulli
+  percent: True
+bounce_60s_rate:
+  title: bounce 60s, %
+  mean: bounce_60s_rate
+  len: sessions
+  distribution: bernoulli
+  percent: True
+bounce_100s_rate:
+  title: bounce 100s, %
+  mean: bounce_100s_rate
+  len: sessions
+  distribution: bernoulli
+  percent: True
+STATS:
+  dau: dau
+  members: members
+  sessions: sessions
+  installs: installs
+  app_open_cnt: app opens
+  subscriber_cnt: subscribers
+  access_cnt: accesses
+  access_instant_cnt: instants
+  access_trial_cnt: trials
+  charged_trial_cnt: charged trials
+  trial -> charge, %: trial -> charge, %
+  buyer_cnt: buyers
+  subscriber -> buyer, %: subscriber -> buyer, %
+  charge_cnt: charges
+  revenue: revenue
+  exp_arpu: exp arpu
+  dau_arpu: dau arpu
+  arppu: arppu
+  aov: aov
+  retention_1d_cnt: retention 1d
+  retention_7d_cnt: retention 7d
+  members with Long Tab: members with long tab
+  Pageview per session: pageview per session
+  bounce_5s: bounce 5s
+  bounce_15s: bounce 15s
+  bounce_30s: bounce 30s
+  bounce_60s: bounce 60s
+  bounce_100s: bounce 100s
