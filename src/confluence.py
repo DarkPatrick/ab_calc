@@ -101,7 +101,9 @@ class ConfluenceWorker():
             
             def replacer(inner_match):
                 debug_print(f"Found inner element: {inner_title}")
-                return f"{inner_match.group(1)}{new_content}{inner_match.group(3)}"
+                existing_content = inner_match.group(2)
+                # return f"{inner_match.group(1)}{new_content}{inner_match.group(3)}"
+                return f"{inner_match.group(1)}{existing_content}\n{new_content}{inner_match.group(3)}"
             
             updated_inner_content = re.sub(inner_pattern, replacer, outer_content, flags=re.DOTALL | re.IGNORECASE)
             
