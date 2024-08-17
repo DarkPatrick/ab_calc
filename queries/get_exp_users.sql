@@ -74,15 +74,7 @@ select
 from
     members
 where
-    multiIf('{pro_rights}' = 'Free', rights % 10 IN (-2, -1, 0, 4, 5), '{pro_rights}' = 'Subscription', rights % 10 IN (1, 2), '{pro_rights}' = 'Lifetime', rights % 10 IN (3), 1)
-and
-    multiIf('{edu_rights}' = 'Free', toUInt8(rights / 10) % 10 IN (0, 4, 5), '{edu_rights}' = 'Subscription', toUInt8(rights / 10) % 10 IN (1, 2), 1)
-and
-    multiIf('{sing_rights}' = 'Free', toUInt8(rights / 100) % 10 IN (0, 4, 5), '{edu_rights}' = 'Subscription', toUInt8(rights / 100) % 10 IN (1, 2), 1)
-and
-    multiIf('{practice_rights}' = 'Free', toUInt8(rights / 1000) % 10 IN (0, 4, 5), '{edu_rights}' = 'Subscription', toUInt8(rights / 1000) % 10 IN (1, 2), 1)
-and
-    multiIf('{book_rights}' = 'Free', toUInt8(rights / 10000) % 10 IN (0, 4, 5), '{edu_rights}' = 'Subscription', toUInt8(rights / 10000) % 10 IN (1, 2), 1)
+    {pro_rights} and {edu_rights} and {sing_rights} and {practice_rights} and {book_rights}
 and
     multiIf(
         '{country}' in ('US', 'CA', 'GB', 'AU'), country = '{country}', 
@@ -91,3 +83,5 @@ and
         '{country}' = 'Latam', country in ('AR', 'BO', 'BR', 'VE', 'HT', 'GP', 'GT', 'HN', 'DO', 'CO', 'CR', 'CU', 'MQ', 'MX', 'NI', 'PA', 'PY', 'PE', 'PR', 'SV', 'BL', 'MF', 'UY', 'GF', 'CL', 'EC'), 
         1
     )
+and
+    ({custom_sql})

@@ -41,4 +41,8 @@ class Mb_Client(BaseModel):
             # json=payload
             params=[("query", dumps(payload))]
         )
+        print("post")
+        print(post.json())
+        print(post)
+        print("end of post")
         return post.json()

@@ -10,15 +10,15 @@ class MetricComposer():
     def __init__(self) -> None:
         self._sql_worker: SqlWorker = SqlWorker()
 
-    def compose_exp(self, exp_id: int) -> pd.DataFrame:
+    def compose_exp(self, exp_id: int, progress_bar, filters) -> pd.DataFrame:
         exp_info: dict = self._sql_worker.get_experiment(exp_id)
 
         exp_end_dt = int(round(datetime.datetime.today().timestamp()))
         if exp_info["date_end"] > exp_info["date_start"]:
             exp_end_dt = exp_info["date_end"]
 
-        exp_members = self._sql_worker.get_users(exp_info)
-        exp_subscriptions = self._sql_worker.get_subscriptions(exp_info)
+        exp_members = self._sql_worker.get_users(exp_info, progress_bar, filters)
+        exp_subscriptions = self._sql_worker.get_subscriptions(exp_info, progress_bar)
 
         merged_df = pd.merge(exp_members, exp_subscriptions, on='unified_id', how='left')
         merged_df['exp_end_dt'] = exp_end_dt

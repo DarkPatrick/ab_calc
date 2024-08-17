@@ -4,6 +4,7 @@ import scipy.special as special
 from statsmodels.stats.power import TTestIndPower
 import pandas as pd
 import math
+import uuid
 
 from df_processing import DF_Processor
 
@@ -14,6 +15,7 @@ class Stats:
         self._power = 0.8
         self._alpha = 0.05
         self._mde = None
+        self._calc_session = None
 
     def calc_stats(self, mean_0, mean_1, var_0, var_1, len_0, len_1, alpha=None, required_power=None, pvalue=None, calc_mean=False):
         if math.isnan(mean_0) or math.isnan(mean_1) or math.isnan(len_0) or math.isnan(len_1):
@@ -66,6 +68,7 @@ class Stats:
         var_beta_b = (alpha_b * beta_b) / (np.power(alpha_b + beta_b, 2) * (alpha_b + beta_b + 1))
 
         # using Central limit theorem instead of simulations to get precise results
+        # print("var_beta_a=", var_beta_a, 'var_beta_b=', var_beta_b)
         normal_std = np.sqrt(var_beta_a + var_beta_b)
         normal_mean = mean_beta_a - mean_beta_b
         # probability that b beats a
@@ -175,6 +178,8 @@ class Stats:
         # stat_results_df['cohort_date'] = pd.to_datetime(stat_results_df['cohort_date'], format='%d/%m/%y').dt.strftime("%Y-%m-%d")
         stat_results_df['cohort_date'] = pd.to_datetime(stat_results_df['cohort_date']).dt.strftime("%Y-%m-%d")
 
+        self._calc_session = str(uuid.uuid4())
+
         return results_df, stat_results_df
 
     def create_summary_table(self, df, stats=False):
@@ -183,21 +188,16 @@ class Stats:
         metrics = latest_df['metric'].unique()
         variations = sorted(latest_df['test_variation'].unique())
 
-        # rows = ['control']
         full_table = pd.DataFrame(columns=metrics, index=["control"])
         for metric in metrics:
             full_table.loc['control', metric] = latest_df.loc[latest_df["metric"] == metric, "control"].values[0]
-        # for var in variations:
-        #     if stats:
-        #         rows.extend([f'variation {var}', 'diff, %'])
-        #     else:
-        #         rows.extend([f'variation {var}', 'pvalue', 'diff, %'])
         
         for var in variations:
             if stats:
                 new_table = pd.DataFrame(columns=metrics, index=[f'variation {var}', 'diff, %'])
             else:
                 new_table = pd.DataFrame(columns=metrics, index=[f'variation {var}', 'diff, %', 'pvalue'])
+                # new_table = pd.DataFrame(columns=metrics, index=[f'variation {var}', 'diff, %', 'pvalue', 'cumulatives'])
             for metric in metrics:
                 metric_data = latest_df[latest_df['metric'] == metric]
                 var_data = metric_data[metric_data['test_variation'] == var]
@@ -211,6 +211,9 @@ class Stats:
                     else:
                         new_table.loc['diff, %', metric] = var_data['mean_diff, %'].values[0]
                         new_table.loc["pvalue", metric] = var_data['pvalue'].values[0]
+            full_table = pd.concat([full_table, new_table], sort=False)
+        if not stats:
+            new_table = pd.DataFrame(columns=metrics, index=[f'cumulatives'])
             full_table = pd.concat([full_table, new_table], sort=False)
 
         return full_table
