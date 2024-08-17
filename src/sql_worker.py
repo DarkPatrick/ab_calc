@@ -139,10 +139,10 @@ class SqlWorker():
                 'custom_sql': 1 if filters['custom_sql_filter'] == '' else filters['custom_sql_filter']
             })
             query = self.get_query("get_exp_users", params)
-            print(query)
+            # print(query)
             # return
             payload = self.get_payload(query)
-            print(payload)
+            # print(payload)
             query_result = self._mb_client.post("dataset/json", payload)
             df = pd.json_normalize(query_result)
             df.unified_id = df.unified_id.apply(self.convert_string_int2int)

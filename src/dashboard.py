@@ -34,7 +34,7 @@ class StreamlitApp:
             self._stats: Stats = Stats()
             self._config: dict = dotenv_values('.config')
             # self._experiments = self._sql_worker.get_active_experiments()
-            print('init 2')
+            # print('init 2')
             self._experiments = self._sql_worker.get_experiments()
             print(self._experiments)
             self._yaml_files = [f for f in os.listdir(self._config['metrics_folder']) if f.endswith('.yaml') or f.endswith('.yml')]
@@ -119,6 +119,14 @@ class StreamlitApp:
         with open(f"{self._config['htm_folder']}{htm_template}_header.html", 'r') as file:
             st.session_state[f'{htm_template}_html_content'] = full_html_code + file.read().format(rows=htm_rows)
 
+    def generate_metric_color(self, value, diff, is_positive=True):
+        if value >= 0.05:
+            return 'class="highlight-#fffae6 confluenceTd" data-highlight-colour="#fffae6" bgcolor="#fffae6"'
+        elif is_positive and diff > 0 or not is_positive and diff < 0:
+            return 'class="highlight-#e3fcef confluenceTd" data-highlight-colour="#e3fcef" bgcolor="#e3fcef"'
+        else:
+            return 'class="highlight-#ffebe6 confluenceTd" data-highlight-colour="#ffebe6" bgcolor="#ffebe6"'
+
     def build_html_monetization_metrics_content(self, table):
         full_html_code = """
         <p class="auto-cursor-target">
@@ -130,6 +138,13 @@ class StreamlitApp:
         for id in range(len(table.index)):
             if table.index[id] == 'pvalue':
                 rows_dict: dict = {
+                    'arpu_color':  self.generate_metric_color(table['arpu'].iloc[id], table['arpu'].iloc[id - 1]),
+                    'aov_color': self.generate_metric_color(table['aov'].iloc[id], table['aov'].iloc[id - 1]),
+                    'arppu_color': self.generate_metric_color(table['arppu'].iloc[id], table['arppu'].iloc[id - 1]),
+                    'access cr, %_color': self.generate_metric_color(table['access cr, %'].iloc[id], table['access cr, %'].iloc[id - 1]),
+                    'charge cr, %_color': self.generate_metric_color(table['charge cr, %'].iloc[id], table['charge cr, %'].iloc[id - 1]),
+                    'trial -> charge, %_color': self.generate_metric_color(table['trial -> charge, %'].iloc[id], table['trial -> charge, %'].iloc[id - 1]),
+                    'charge -> 14d cancel, %_color': self.generate_metric_color(table['charge -> 14d cancel, %'].iloc[id], table['charge -> 14d cancel, %'].iloc[id - 1], False),
                     'variation': table.index[id],
                     'arpu': f"{self.pvalue_round(table['arpu'].iloc[id])}",
                     'aov': f"{self.pvalue_round(table['aov'].iloc[id])}",
@@ -139,8 +154,16 @@ class StreamlitApp:
                     'trial -> charge, %': f"{self.pvalue_round(table['trial -> charge, %'].iloc[id])}",
                     'charge -> 14d cancel, %': f"{self.pvalue_round(table['charge -> 14d cancel, %'].iloc[id])}"
                 }
+                # print(rows_dict)
             elif table.index[id] == 'cumulatives':
                 rows_dict: dict = {
+                    'arpu_color': '',
+                    'aov_color': '',
+                    'arppu_color': '',
+                    'access cr, %_color': '',
+                    'charge cr, %_color': '',
+                    'trial -> charge, %_color': '',
+                    'charge -> 14d cancel, %_color': '',
                     'variation': table.index[id],
                     'arpu': self._confluence_worker.generate_image_markup(f'arpu_pvalues_diff_confidence_intervals_{self._stats._calc_session}.png'),
                     'aov': self._confluence_worker.generate_image_markup(f'aov_pvalues_diff_confidence_intervals_{self._stats._calc_session}.png'),
@@ -150,7 +173,6 @@ class StreamlitApp:
                     'trial -> charge, %': self._confluence_worker.generate_image_markup(f'trial -> charge, %_pvalues_diff_confidence_intervals_{self._stats._calc_session}.png'),
                     'charge -> 14d cancel, %': self._confluence_worker.generate_image_markup(f'charge -> 14d cancel, %_pvalues_diff_confidence_intervals_{self._stats._calc_session}.png')
                 }
-                # print(rows_dict)
             else:
                 money_prefix = '$'
                 money_suffix = ''
@@ -158,6 +180,13 @@ class StreamlitApp:
                     money_prefix = ''
                     money_suffix = '%'
                 rows_dict: dict = {
+                    'arpu_color': '',
+                    'aov_color': '',
+                    'arppu_color': '',
+                    'access cr, %_color': '',
+                    'charge cr, %_color': '',
+                    'trial -> charge, %_color': '',
+                    'charge -> 14d cancel, %_color': '',
                     'variation': table.index[id],
                     'arpu': f"""{money_prefix}{Decimal(f"{table['arpu'].iloc[id]:.3g}"):f}{money_suffix}""",
                     'aov': f"""{money_prefix}{Decimal(f"{table['aov'].iloc[id]:.3g}"):f}{money_suffix}""",
@@ -288,19 +317,37 @@ class StreamlitApp:
         st.sidebar.text_input(
             'ID', self._experiment_config['id'], key='id', disabled=True
         )
-        st.sidebar.text_input(
-            'Date Start', 
-            datetime.datetime.fromtimestamp(
-                self._experiment_config['date_start'], 
-                datetime.timezone.utc
-            ).strftime('%Y-%m-%d'),
-            key='date_start',
-            disabled=True
-        )
-        st.sidebar.text_input(
-            'Date End', self._experiment_config['date_end'], key='date_end',
-            disabled=True
-        )
+        date_col1, date_col2 = st.sidebar.columns([1, 1])
+        # date_col1.text_input(
+        #         'Date Start', 
+        #         datetime.datetime.fromtimestamp(
+        #             self._experiment_config['date_start'], 
+        #             datetime.timezone.utc
+        #         ).strftime('%Y-%m-%d'),
+        #         # key='date_start',
+        #         disabled=True
+        #     )
+        with date_col1:
+            date_start_label = st.text_input(
+                'Date Start', 
+                datetime.datetime.fromtimestamp(
+                    self._experiment_config['date_start'], 
+                    datetime.timezone.utc
+                ).strftime('%Y-%m-%d'),
+                # key='date_start',
+                disabled=True
+            )
+        with date_col2:
+            date_end_label = st.text_input(
+                'Date End', 
+                0 if self._experiment_config['date_end'] == 0 else 
+                    datetime.datetime.fromtimestamp(
+                        self._experiment_config['date_end'], 
+                        datetime.timezone.utc
+                    ).strftime('%Y-%m-%d'), 
+                # key='date_end',
+                disabled=True
+            )
         st.sidebar.text_input(
             'Exposure Event', self._experiment_config['experiment_event_start'], 
             key='exposure_event'
@@ -333,7 +380,7 @@ class StreamlitApp:
         ])
         os_configuration = list(['All', 'iOS', 'Android'])
         country_configuration = list([
-            'All', 'US', 'CA', 'GB', 'Europe', 'Asia', 'Latam'
+            'All', 'US', 'CA', 'GB', 'AU', 'Europe', 'Asia', 'Latam'
         ])
 
         with st.sidebar.expander('Filters'):
