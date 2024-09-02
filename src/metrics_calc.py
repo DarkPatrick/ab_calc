@@ -14,11 +14,18 @@ class MetricComposer():
         exp_info: dict = self._sql_worker.get_experiment(exp_id)
 
         exp_end_dt = int(round(datetime.datetime.today().timestamp()))
-        if exp_info["date_end"] > exp_info["date_start"]:
-            exp_end_dt = exp_info["date_end"]
+        if exp_info['date_end'] > exp_info['date_start']:
+            exp_end_dt = exp_info['date_end']
 
+#           variation  unified_id
+# 0         1       25710
+# 1         2       25552
+# 2         3       25816
         exp_members = self._sql_worker.get_users(exp_info, progress_bar, filters)
+        # exp_members = exp_members.loc[exp_members['exp_start_dt'].between(exp_info['date_start'], exp_end_dt)]
         exp_subscriptions = self._sql_worker.get_subscriptions(exp_info, progress_bar)
+        # print("AAAAAAAAAAAAA")
+        # print(exp_members.groupby('variation')['unified_id'].nunique().reset_index())
 
         merged_df = pd.merge(exp_members, exp_subscriptions, on='unified_id', how='left')
         merged_df['exp_end_dt'] = exp_end_dt
@@ -33,7 +40,7 @@ class MetricComposer():
         merged_df['unified_revenue'] = merged_df.apply(lambda row: (row['unified_id'], row['revenue']), axis=1)
         trial_condition = merged_df['trial'] > 0
 
-        merged_df.to_csv("merged_df.csv")
+        # merged_df.to_csv("merged_df.csv")
 
         agg_dict = {
             'members': pd.NamedAgg(column='unified_id', aggfunc=pd.Series.nunique),
@@ -58,9 +65,15 @@ class MetricComposer():
             'cancel_1m_cnt': pd.NamedAgg(column='sub_prod_id', aggfunc=lambda x: x[between_subscribed_exp & (merged_df['charge_dt'] >= merged_df['subscribed_dt']) & (merged_df['cancel_dt'].between(merged_df['charge_dt'], merged_df['charge_dt'] + pd.Timedelta(days=30).total_seconds()))].nunique())
         }
 
-        bydate = merged_df.groupby(['dt', 'variation']).agg(**agg_dict).reset_index()
-
-        bydate = bydate.sort_values(['variation', 'dt'])
+        print("split=", filters['split'])
+        if filters['split'] == None or filters['split'] == []:
+            bydate = merged_df.groupby(['dt', 'variation']).agg(**agg_dict).reset_index()
+        elif 'Source' in filters['split']:
+            bydate = merged_df.groupby(['dt', 'variation', 'source']).agg(**agg_dict).reset_index()
+        if filters['split'] == None or filters['split'] == []:
+            bydate = bydate.sort_values(['variation', 'dt'])
+        elif 'Source' in filters['split']:
+            bydate = bydate.sort_values(['variation', 'dt', 'source'])
         bydate['members'] = bydate.groupby('variation')['members'].cumsum()
         bydate['subscriber_cnt'] = bydate.groupby('variation')['subscriber_cnt'].cumsum()
         bydate['access_cnt'] = bydate.groupby('variation')['access_cnt'].cumsum()
@@ -112,7 +125,7 @@ class MetricComposer():
         bydate["prices_per_buyer"] = bydate["prices_per_buyer"].map(lambda x: flatten_concatenation(x))
         # print(bydate['prices_per_buyer'])
         # print(bydate['prices_per_buyer_cum'])
-        bydate.to_csv("cumulative.csv")
+        # bydate.to_csv("cumulative.csv")
 
         def process_row(row):
             prices_df = pd.DataFrame(row['prices_per_buyer'], columns=['key', 'value'])
@@ -123,17 +136,30 @@ class MetricComposer():
 
         bydate['denom'] = 1
 
-        cumulative = bydate[[
-            'dt', 'variation', 'members', 'subscriber_cnt', 'access_cnt', 
-            'accesses per subscriber', 'member -> subscriber, %', 'access_instant_cnt', 'access_trial_cnt',
-            'trial_subscriber_cnt', 'charged_trial_cnt', 'trial_buyer_cnt', 'trial -> charge, %',
-            'trial subscriber -> buyer, %', 'late_charged_cnt', 'buyer_cnt', 'subscriber -> buyer, %',
-            'member -> buyer, %', 'charge_cnt', 'subscription -> charge, %', 'cancel_14d_cnt',
-            'charge -> 14d cancel, %', 'cancel_1m_cnt', 'charge -> 1m cancel, %',
-            'revenue', 'trial_revenue', 'arppu', 'aov', 'exp_arpu', 'exp_trial_arpu',
-            'exp_instant_arpu', 'prices', 'prices_per_buyer', 'grouped_sums',
-            'denom'
-        ]]
+        if filters['split'] == None or filters['split'] == []:
+            cumulative = bydate[[
+                'dt', 'variation', 'members', 'subscriber_cnt', 'access_cnt', 
+                'accesses per subscriber', 'member -> subscriber, %', 'access_instant_cnt', 'access_trial_cnt',
+                'trial_subscriber_cnt', 'charged_trial_cnt', 'trial_buyer_cnt', 'trial -> charge, %',
+                'trial subscriber -> buyer, %', 'late_charged_cnt', 'buyer_cnt', 'subscriber -> buyer, %',
+                'member -> buyer, %', 'charge_cnt', 'subscription -> charge, %', 'cancel_14d_cnt',
+                'charge -> 14d cancel, %', 'cancel_1m_cnt', 'charge -> 1m cancel, %',
+                'revenue', 'trial_revenue', 'arppu', 'aov', 'exp_arpu', 'exp_trial_arpu',
+                'exp_instant_arpu', 'prices', 'prices_per_buyer', 'grouped_sums',
+                'denom'
+            ]]
+        elif 'Source' in filters['split']:
+            cumulative = bydate[[
+                'dt', 'variation', 'source', 'members', 'subscriber_cnt', 'access_cnt', 
+                'accesses per subscriber', 'member -> subscriber, %', 'access_instant_cnt', 'access_trial_cnt',
+                'trial_subscriber_cnt', 'charged_trial_cnt', 'trial_buyer_cnt', 'trial -> charge, %',
+                'trial subscriber -> buyer, %', 'late_charged_cnt', 'buyer_cnt', 'subscriber -> buyer, %',
+                'member -> buyer, %', 'charge_cnt', 'subscription -> charge, %', 'cancel_14d_cnt',
+                'charge -> 14d cancel, %', 'cancel_1m_cnt', 'charge -> 1m cancel, %',
+                'revenue', 'trial_revenue', 'arppu', 'aov', 'exp_arpu', 'exp_trial_arpu',
+                'exp_instant_arpu', 'prices', 'prices_per_buyer', 'grouped_sums',
+                'denom'
+            ]]
         
         cumulative.to_csv("cumulative.csv")
 
@@ -165,20 +191,38 @@ class MetricComposer():
         )
 
         # Select and order columns
-        columns = [
-            'dt', 'variation', 'members', 'subscriber_cnt', 'access_cnt', 
-            'accesses per subscriber', 'member -> subscriber, %', 
-            'access_instant_cnt', 'access_trial_cnt', 'trials_part', 
-            'trial_subscriber_cnt', 'charged_trial_cnt', 'trial_buyer_cnt', 
-            'trial -> charge, %', 'trial subscriber -> buyer, %', 
-            'late_charged_cnt', 'buyer_cnt', 'subscriber -> buyer, %', 
-            'member -> buyer, %', 'charge_cnt', 'subscription -> charge, %', 
-            'cancel_14d_cnt', 'charge -> 14d cancel, %', 'cancel_1m_cnt', 
-            'charge -> 1m cancel, %', 'revenue', 'trial_revenue', 'arppu', 
-            'aov', 'exp_arpu', 'exp_trial_arpu', 'exp_instant_arpu',
-            'aov_var', 'arppu_var', 'exp_arpu_var'
-        ]
+        if filters['split'] == None or filters['split'] == []:
+            columns = [
+                'dt', 'variation', 'members', 'subscriber_cnt', 'access_cnt', 
+                'accesses per subscriber', 'member -> subscriber, %', 
+                'access_instant_cnt', 'access_trial_cnt', 'trials_part', 
+                'trial_subscriber_cnt', 'charged_trial_cnt', 'trial_buyer_cnt', 
+                'trial -> charge, %', 'trial subscriber -> buyer, %', 
+                'late_charged_cnt', 'buyer_cnt', 'subscriber -> buyer, %', 
+                'member -> buyer, %', 'charge_cnt', 'subscription -> charge, %', 
+                'cancel_14d_cnt', 'charge -> 14d cancel, %', 'cancel_1m_cnt', 
+                'charge -> 1m cancel, %', 'revenue', 'trial_revenue', 'arppu', 
+                'aov', 'exp_arpu', 'exp_trial_arpu', 'exp_instant_arpu',
+                'aov_var', 'arppu_var', 'exp_arpu_var'
+            ]
+        elif 'Source' in filters['split']:
+            columns = [
+                'dt', 'variation', 'source', 'members', 'subscriber_cnt', 'access_cnt', 
+                'accesses per subscriber', 'member -> subscriber, %', 
+                'access_instant_cnt', 'access_trial_cnt', 'trials_part', 
+                'trial_subscriber_cnt', 'charged_trial_cnt', 'trial_buyer_cnt', 
+                'trial -> charge, %', 'trial subscriber -> buyer, %', 
+                'late_charged_cnt', 'buyer_cnt', 'subscriber -> buyer, %', 
+                'member -> buyer, %', 'charge_cnt', 'subscription -> charge, %', 
+                'cancel_14d_cnt', 'charge -> 14d cancel, %', 'cancel_1m_cnt', 
+                'charge -> 1m cancel, %', 'revenue', 'trial_revenue', 'arppu', 
+                'aov', 'exp_arpu', 'exp_trial_arpu', 'exp_instant_arpu',
+                'aov_var', 'arppu_var', 'exp_arpu_var'
+            ]
 
-        result = result[columns].sort_values(['dt', 'variation'])
+        if filters['split'] == None or filters['split'] == []:
+            result = result[columns].sort_values(['dt', 'variation'])
+        elif 'Source' in filters['split']:
+            result = result[columns].sort_values(['dt', 'variation', 'source'])
 
         return result

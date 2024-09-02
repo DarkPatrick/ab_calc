@@ -1,8 +1,14 @@
 # TODO:
+# different progress bars
+# ios / android
+# mobweb
+# product/seo metrics
 # intractive map with active connections
 # st.map
+# save last used config
 # TOFIX:
 # pvalue cell colors
+# df limits by counting
 import streamlit as st
 from streamlit_modal import Modal
 from code_editor import code_editor
@@ -257,16 +263,30 @@ class StreamlitApp:
             if 'app_monetization_metrics_html_content' in st.session_state and st.session_state['app_monetization_metrics_html_content'] is not None:
                 st.html(st.session_state['app_monetization_metrics_html_content'])
         if self._page_info is not None:
+            segments_cols = st.columns(2)
             iterations_options = self._confluence_worker.get_iterations_list(self._page_info['current_content'])
             first_level = list(iterations_options.keys())
-            first_level_segment = st.selectbox('Select Update Segment Level #1', first_level)
-            if first_level_segment != '':
-                st.session_state['confluence_insert_segment_#1'] = first_level_segment
-            if len(iterations_options[first_level_segment].keys()) > 0:
-                secondlevel = list(iterations_options[first_level_segment].keys())
-                second_level_segment = st.selectbox('Select Update Segment Level #2', secondlevel)
-                if second_level_segment != '':
-                    st.session_state['confluence_insert_segment_#2'] = second_level_segment
+            if first_level != []:
+                with segments_cols[0]:
+                    first_level_segment = st.selectbox('Select Update Segment Level #1', first_level)
+                    if first_level_segment != '':
+                        st.session_state['confluence_insert_segment_#1'] = first_level_segment
+                if len(iterations_options[first_level_segment].keys()) > 0:
+                    # segments_cols = st.columns(3)
+                    second_level = list(iterations_options[first_level_segment].keys())
+                        # first_level_segment = st.selectbox('Select Update Segment Level #1', first_level)
+                        # if first_level_segment != '':
+                        #     st.session_state['confluence_insert_segment_#1'] = first_level_segment
+                    with segments_cols[1]:
+                        second_level_segment = st.selectbox('Select Update Segment Level #2', second_level)
+                        if second_level_segment != '':
+                            st.session_state['confluence_insert_segment_#2'] = second_level_segment
+            # if first_level != []:
+            #     with segments_cols[-1]:
+            #         st.text_input('Insert segment', '')
+            # else:
+            #     with segments_cols[0]:
+            #         st.text_input('Insert segment', '')
     
     def display_existing_experiments(self):
         scope_options = [''] + list(self._experiments['name'].str.extract(r'^\s*\[(?!\d{4}-[Xx\d]{2}-[Xx\d]{2})(.*?)(?:/.*?)?\]')[0].dropna().unique())
@@ -358,10 +378,10 @@ class StreamlitApp:
             url = ''
         else:
             url = urls[0]
-        if url != '':
-            project_page = st.sidebar.text_input(
-                'Project Page', f'{url}'
-            )
+        # if url != '':
+        project_page = st.sidebar.text_input(
+            'Project Page', f'{url}'
+        )
         if st.session_state['project_page'] != project_page:
             st.session_state['project_page'] = project_page
         if 'pageId=' in project_page:
@@ -375,14 +395,21 @@ class StreamlitApp:
             'All', 'Free', 'Finite subscription', 'Lifetime', 'Any paid',
             'Any subscription', 'Trial', 'Expired subscription', 'Expired trial', 'Expired any'
         ])
+        source_configuration = list(['All', 'UG_WEB', 'UGT_ANDROID', 'UGT_IOS', 'UG_ANDROID', 'UG_IOS'])
         platform_configuration = list([
-            'All', 'Web', 'Mobile', 'Tablet', 'MobWeb'
+            'All', 'Desktop', 'Phone', 'Tablet', 'Mobile'
         ])
         os_configuration = list(['All', 'iOS', 'Android'])
         country_configuration = list([
             'All', 'US', 'CA', 'GB', 'AU', 'Europe', 'Asia', 'Latam'
         ])
 
+        default_split = None
+        if len(self._experiment_config['clients_list']) > 1:
+            default_split = 'Source'
+        st.session_state['project_filters']['split'] = st.sidebar.multiselect(
+            'Split By', ['Platform', 'OS', 'Source'], default_split
+        )
         with st.sidebar.expander('Filters'):
             st.session_state['project_filters']['pro_rights_filter'] = st.selectbox(
                 'Pro Rights', rights_configuration
@@ -398,6 +425,9 @@ class StreamlitApp:
             )
             st.session_state['project_filters']['books_rights_filter'] = st.selectbox(
                 'Books Rights', rights_configuration
+            )
+            st.session_state['project_filters']['source_filter'] = st.selectbox(
+                'Source', source_configuration
             )
             st.session_state['project_filters']['platform_filter'] = st.selectbox(
                 'Platform', platform_configuration
@@ -459,6 +489,7 @@ class StreamlitApp:
                 list_dir = os.listdir(plot_dir)
                 number_files = len(list_dir)
                 file_num = 1
+                
                 image_loading_bar = st.progress(0, text="")
                 for plot_file in list_dir:
                     image_loading_bar.progress(round(file_num / number_files * 100), text='uploading images...')
@@ -470,8 +501,11 @@ class StreamlitApp:
                     )
                     file_num += 1
                 # TODO: remove hardcode
+                
                 outer_title = st.session_state['confluence_insert_segment_#1']
                 inner_title = st.session_state['confluence_insert_segment_#2']
+                # print("confluence_insert_segment_#1 / confluence_insert_segment_#2")
+                # print(outer_title, inner_title)
                 # print("outer_title=", outer_title, "inner_title=", inner_title)
                 content_to_insert = ''
                 if 'app_monetization_stats_html_content' in st.session_state:
@@ -495,6 +529,9 @@ class StreamlitApp:
                             }
                         }
                     }
+                    # text_file = open("updated_content.html", "w")
+                    # text_file.write(new_content)
+                    # text_file.close()
                     self._confluence_worker.upload_data(page_url, updated_content)
                     st.success('Results uploaded successfully')
 

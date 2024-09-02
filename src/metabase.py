@@ -43,6 +43,6 @@ class Mb_Client(BaseModel):
         )
         print("post")
         # print(post.json())
-        # print(post)
+        print(post)
         print("end of post")
         return post.json()

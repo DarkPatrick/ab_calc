@@ -3,13 +3,17 @@ with members as (
         experiments.variation[indexOf(experiments.id, {exp_id})] as variation,
         unified_id,
         argMinIf(session_id, datetime, session_id > 0) as session_id,
-        min(toUnixTimestamp(datetime)) AS exp_start_dt,
-        argMin(rights,datetime) AS rights,
-        argMin(country,datetime) AS country
+        min(toUnixTimestamp(datetime)) as exp_start_dt,
+        argMin(rights, datetime) as rights,
+        argMin(country, datetime) as country,
+        argMin(source, datetime) as source,
+        argMin(multiIf(os in ('ios', 'os x'), 'ios', os), datetime) as os
     from
         default.ug_rt_events_web
     where
         date = '{date}'
+    and
+        datetime between toDateTime({datetime_start}) and toDateTime({datetime_end})
     and
         has(experiments.id, {exp_id})
     and
@@ -21,9 +25,9 @@ with members as (
     and
         multiIf(
             '{platform}' = 'Desktop',  platform = 1,
-            '{platform}' = 'Mobile', platform = 2, 
+            '{platform}' = 'Phone', platform = 2, 
             '{platform}' = 'Tablet', platform = 3, 
-            '{platform}' = 'MobWeb', platform > 1, 
+            '{platform}' = 'Mobile', platform > 1, 
             1
         )
     and
@@ -43,30 +47,44 @@ with members as (
         argMinIf(session_id, datetime, session_id > 0) as session_id,
         min(toUnixTimestamp(datetime)) AS exp_start_dt,
         argMin(rights,datetime) AS rights,
-        argMin(country,datetime) AS country
+        argMin(country,datetime) AS country,
+        argMin(source, datetime) as source,
+        argMin(os, datetime) as os
     from
         default.ug_rt_events_app
     where
         date = '{date}'
     and
+        datetime between toDateTime({datetime_start}) and toDateTime({datetime_end})
+    and
         has(experiments.id, {exp_id})
     and
         unified_id > 0
+    and
+        payment_account_id > 0
     and (
         '{custom_confirm_event}' = 'App Experiment Start' and event = 'App Experiment Start' and item_id = '{exp_id}'
         or '{custom_confirm_event}' <> 'App Experiment Start' and event = '{custom_confirm_event}'
     )
     and
-        ('{source}' = 'all' or '{source}' = source)
-    and
         ('{custom_confirm_include_values}' = '' or value in ('{custom_confirm_include_values}'))
     and
         ('{custom_confirm_exclude_values}' = '' or value not in ('{custom_confirm_exclude_values}'))
+    and
+        multiIf(
+            '{platform}' = 'Desktop',  platform = 1,
+            '{platform}' = 'Phone', platform = 2, 
+            '{platform}' = 'Tablet', platform = 3, 
+            '{platform}' = 'Mobile', platform > 1, 
+            1
+        )
     group by
         variation,
         unified_id
     having
         session_id > 0
+    and
+        ('{source}' = 'All' or '{source}' = source)
 )
 
 select

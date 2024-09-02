@@ -3,6 +3,7 @@ from dotenv import dotenv_values
 import pandas as pd
 import datetime
 import math
+import re
 
 
 class SqlWorker():
@@ -19,15 +20,15 @@ class SqlWorker():
         rights_level_list = ['pro', 'edu', 'sing', 'practice', 'book']
         rights_level = int(math.pow(10, rights_level_list.index(rights_type)))
         rights_dict: dict = {
-            'Free': f'toUInt8(rights / {rights_level}) % 10 in (0, 4, 5)',
-            'Finite subscription': f'toUInt8(rights / {rights_level}) % 10 in (1, 2)',
-            'Lifetime': f'toUInt8(rights / {rights_level}) % 10 in (3)',
-            'Any paid': f'toUInt8(rights / {rights_level}) % 10 in (2, 3)',
-            'Any subscription': f'toUInt8(rights / {rights_level}) % 10 in (1, 2, 3)',
-            'Trial': f'toUInt8(rights / {rights_level}) % 10 in (1)',
-            'Expired subscription': f'toUInt8(rights / {rights_level}) % 10 in (5)',
-            'Expired trial': f'toUInt8(rights / {rights_level}) % 10 in (4)',
-            'Expired any': f'toUInt8(rights / {rights_level}) % 10 in (4, 5)',
+            'Free': f'toUInt32(rights / {rights_level}) % 10 in (0, 4, 5)',
+            'Finite subscription': f'toUInt32(rights / {rights_level}) % 10 in (1, 2)',
+            'Lifetime': f'toUInt32(rights / {rights_level}) % 10 in (3)',
+            'Any paid': f'toUInt32(rights / {rights_level}) % 10 in (2, 3)',
+            'Any subscription': f'toUInt32(rights / {rights_level}) % 10 in (1, 2, 3)',
+            'Trial': f'toUInt32(rights / {rights_level}) % 10 in (1)',
+            'Expired subscription': f'toUInt32(rights / {rights_level}) % 10 in (5)',
+            'Expired trial': f'toUInt32(rights / {rights_level}) % 10 in (4)',
+            'Expired any': f'toUInt32(rights / {rights_level}) % 10 in (4, 5)',
             'All': f'1'
         }
         return rights_dict[rights]
@@ -61,6 +62,8 @@ class SqlWorker():
         df.date_start = df.date_start.apply(self.convert_string_int2int)
         df.date_end = df.date_end.apply(self.convert_string_int2int)
         df.variations = df.variations.apply(self.convert_string_int2int)
+        clients_pattern = r'(\w+)'
+        df['clients_list'] = df.clients.apply(lambda x: re.findall(clients_pattern, x))
         return df
 
     def get_experiments(self) -> pd.DataFrame:
@@ -75,6 +78,8 @@ class SqlWorker():
         df.date_end = df.date_end.apply(self.convert_string_int2int)
         df.variations = df.variations.apply(self.convert_string_int2int)
         df.status = df.status.apply(self.convert_string_int2int)
+        clients_pattern = r'(\w+)'
+        df['clients_list'] = df.clients.apply(lambda x: re.findall(clients_pattern, x))
         return df
 
     def get_experiment(self, id) -> dict:
@@ -86,22 +91,25 @@ class SqlWorker():
         df.date_start = df.date_start.apply(self.convert_string_int2int)
         df.date_end = df.date_end.apply(self.convert_string_int2int)
         df.variations = df.variations.apply(self.convert_string_int2int)
+        clients_pattern = r'(\w+)'
+        df['clients_list'] = df.clients.apply(lambda x: re.findall(clients_pattern, x))
         exp_info: dict = {
             "id": df.id[0],
             "date_start": df.date_start[0],
             "date_end": df.date_end[0],
             "variations": df.variations[0],
             "experiment_event_start": df.experiment_event_start[0],
-            "configuration": df.configuration[0]
+            "configuration": df.configuration[0],
+            'clients_list': df.clients_list[0]
         }
         return exp_info
 
     def get_users(self, exp_info: pd.DataFrame, progress_bar, filters) -> pd.DataFrame:
         full_df = pd.DataFrame({})
-        exp_start_dt = datetime.datetime.fromtimestamp(exp_info["date_start"])
+        exp_start_dt = datetime.datetime.fromtimestamp(exp_info["date_start"], datetime.timezone.utc)
         exp_end_dt = datetime.datetime.today()
         if exp_info["date_end"] > exp_info["date_start"]:
-            exp_end_dt = datetime.datetime.fromtimestamp(exp_info["date_end"])
+            exp_end_dt = datetime.datetime.fromtimestamp(exp_info["date_end"], datetime.timezone.utc)
             print(exp_end_dt)
         # print(exp_start_dt.date())
         # print(exp_end_dt.date())
@@ -115,8 +123,10 @@ class SqlWorker():
             params=dict({
                 "exp_id": exp_info["id"],
                 "date": current_day.strftime("%Y-%m-%d"),
+                'datetime_start': exp_info["date_start"],
+                'datetime_end': exp_info["date_end"],
                 "custom_confirm_event": exp_info["experiment_event_start"],
-                "platform": "all",
+                "platform": filters['platform_filter'],
                 "custom_confirm_include_values": "",
                 "custom_confirm_exclude_values": "",
                 # "pro_rights": "Free",
@@ -135,16 +145,19 @@ class SqlWorker():
                 # 'book_rights': f"{filters['books_rights_filter']}",
                 'book_rights': self.generate_sql_rights_filter('book', filters['books_rights_filter']),
                 "country": "all",
-                "source": "all",
+                "source": filters['source_filter'],
                 'custom_sql': 1 if filters['custom_sql_filter'] == '' else filters['custom_sql_filter']
             })
             query = self.get_query("get_exp_users", params)
-            # print(query)
+            print(query)
             # return
             payload = self.get_payload(query)
             # print(payload)
             query_result = self._mb_client.post("dataset/json", payload)
             df = pd.json_normalize(query_result)
+            print("df", df.shape)
+            df.to_csv('res.csv')
+            print(df)
             df.unified_id = df.unified_id.apply(self.convert_string_int2int)
             df.session_id = df.session_id.apply(self.convert_string_int2int)
             df.exp_start_dt = df.exp_start_dt.apply(self.convert_string_int2int)
@@ -156,7 +169,7 @@ class SqlWorker():
 
     def get_subscriptions(self, exp_info: pd.DataFrame, progress_bar) -> pd.DataFrame:
         full_df = pd.DataFrame({})
-        exp_start_dt = datetime.datetime.fromtimestamp(exp_info["date_start"])
+        exp_start_dt = datetime.datetime.fromtimestamp(exp_info["date_start"], datetime.timezone.utc)
         exp_end_dt = datetime.datetime.today()
         days_cnt = (exp_end_dt.date() - exp_start_dt.date()).days + 1
         for day in range(days_cnt):
