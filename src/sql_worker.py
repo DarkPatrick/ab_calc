@@ -1,3 +1,4 @@
+# TODO: split data if loading more than 100k of data
 from metabase import Mb_Client
 from dotenv import dotenv_values
 import pandas as pd
@@ -164,6 +165,58 @@ class SqlWorker():
             full_df = pd.concat([full_df, df], ignore_index=True)
             full_df = full_df.sort_values(by=['unified_id', 'exp_start_dt'])
             full_df = full_df.drop_duplicates(subset='unified_id', keep='first')
+        progress_bar.empty()
+        return full_df
+
+    def get_returned_users(self, exp_info: pd.DataFrame, progress_bar, filters) -> pd.DataFrame:
+        full_df = pd.DataFrame({})
+        exp_start_dt = datetime.datetime.fromtimestamp(exp_info["date_start"], datetime.timezone.utc)
+        exp_end_dt = datetime.datetime.today()
+        if exp_info["date_end"] > exp_info["date_start"]:
+            exp_end_dt = datetime.datetime.fromtimestamp(exp_info["date_end"], datetime.timezone.utc)
+            print(exp_end_dt)
+        days_cnt = (exp_end_dt.date() - exp_start_dt.date()).days + 1
+        print(days_cnt)
+        for day in range(days_cnt):
+            progress_bar.progress(round(day / days_cnt * 100), text='getting returned users...')
+            current_day = exp_start_dt + datetime.timedelta(days=day)
+            print(current_day.strftime('%Y-%m-%d'))
+            params=dict({
+                "exp_id": exp_info["id"],
+                "date": current_day.strftime("%Y-%m-%d"),
+                'datetime_start': exp_info["date_start"],
+                'datetime_end': exp_info["date_end"],
+                "custom_confirm_event": exp_info["experiment_event_start"],
+                "platform": filters['platform_filter'],
+                "custom_confirm_include_values": "",
+                "custom_confirm_exclude_values": "",
+                'pro_rights': self.generate_sql_rights_filter('pro', filters['pro_rights_filter']),
+                'edu_rights': self.generate_sql_rights_filter('edu', filters['edu_rights_filter']),
+                'sing_rights': self.generate_sql_rights_filter('sing', filters['sing_rights_filter']),
+                'practice_rights': self.generate_sql_rights_filter('practice', filters['practice_rights_filter']),
+                'book_rights': self.generate_sql_rights_filter('book', filters['books_rights_filter']),
+                "country": "all",
+                "source": filters['source_filter'],
+                'custom_sql': 1 if filters['custom_sql_filter'] == '' else filters['custom_sql_filter']
+            })
+            query = self.get_query("get_returned_users", params)
+            print(query)
+            payload = self.get_payload(query)
+            query_result = self._mb_client.post("dataset/json", payload)
+            print(query_result)
+            df = pd.json_normalize(query_result)
+            print("df", df.shape)
+            df.to_csv('res.csv')
+            print(df)
+            df.cohort_date = df.cohort_date.apply(self.convert_string_int2int)
+            df.user_cnt = df.user_cnt.apply(self.convert_string_int2int)
+            df.retention_1d_cnt = df.retention_1d_cnt.apply(self.convert_string_int2int)
+            df.retention_7d_cnt = df.retention_7d_cnt.apply(self.convert_string_int2int)
+            df.session_cnt = df.session_cnt.apply(self.convert_string_int2int)
+            df.long_tab_view_cnt = df.long_tab_view_cnt.apply(self.convert_string_int2int)
+            full_df = pd.concat([full_df, df], ignore_index=True)
+            full_df = full_df.sort_values(by=['cohort_date', 'variation'])
+            # full_df = full_df.drop_duplicates(subset='unified_id', keep='first')
         progress_bar.empty()
         return full_df
 

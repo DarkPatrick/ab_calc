@@ -17,10 +17,6 @@ class MetricComposer():
         if exp_info['date_end'] > exp_info['date_start']:
             exp_end_dt = exp_info['date_end']
 
-#           variation  unified_id
-# 0         1       25710
-# 1         2       25552
-# 2         3       25816
         exp_members = self._sql_worker.get_users(exp_info, progress_bar, filters)
         # exp_members = exp_members.loc[exp_members['exp_start_dt'].between(exp_info['date_start'], exp_end_dt)]
         exp_subscriptions = self._sql_worker.get_subscriptions(exp_info, progress_bar)
@@ -74,6 +70,7 @@ class MetricComposer():
             bydate = bydate.sort_values(['variation', 'dt'])
         elif 'Source' in filters['split']:
             bydate = bydate.sort_values(['variation', 'dt', 'source'])
+        # TOFIX: group by variation, source
         bydate['members'] = bydate.groupby('variation')['members'].cumsum()
         bydate['subscriber_cnt'] = bydate.groupby('variation')['subscriber_cnt'].cumsum()
         bydate['access_cnt'] = bydate.groupby('variation')['access_cnt'].cumsum()
@@ -224,5 +221,25 @@ class MetricComposer():
             result = result[columns].sort_values(['dt', 'variation'])
         elif 'Source' in filters['split']:
             result = result[columns].sort_values(['dt', 'variation', 'source'])
+
+        returned_user_df = self._sql_worker.get_returned_users(exp_info, progress_bar, filters)
+        returned_user_df['cohort_date'] = pd.to_datetime(returned_user_df['cohort_date'], unit='s').dt.tz_localize('UTC').dt.date
+        returned_user_df_cum = returned_user_df.sort_values(['cohort_date', 'variation'])
+        returned_user_df_cum['members'] = returned_user_df_cum.groupby('variation')['user_cnt'].cumsum()
+        returned_user_df_cum['session_cnt'] = returned_user_df_cum.groupby('variation')['session_cnt'].cumsum()
+        returned_user_df_cum['retention_1d_cnt'] = returned_user_df_cum.groupby('variation')['retention_1d_cnt'].cumsum()
+        returned_user_df_cum['retention_7d_cnt'] = returned_user_df_cum.groupby('variation')['retention_7d_cnt'].cumsum()
+        returned_user_df_cum['long_tab_view_cnt'] = returned_user_df_cum.groupby('variation')['long_tab_view_cnt'].cumsum()
+        columns = [
+            'cohort_date',
+            'variation',
+            'members',
+            'session_cnt',
+            'retention_1d_cnt',
+            'retention_7d_cnt',
+            'long_tab_view_cnt'
+        ]
+        result_2 = returned_user_df_cum[columns].sort_values(['cohort_date', 'variation'])
+        result_2.to_csv('returned_user_df_cum.csv')
 
         return result

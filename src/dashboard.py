@@ -83,12 +83,11 @@ class StreamlitApp:
             st.session_state['project_filters'] = {}
     
     def build_html_content(self, table, htm_template):
-        full_html_code = """
-        <p class="auto-cursor-target">
-        <strong>Monetization Stats</strong>
-        </p>
-        \n
-        """
+        # full_html_code = """
+        # <p class="auto-cursor-target">
+        # <strong>Monetization Stats</strong>
+        # </p>
+        # """
         htm_rows = ''
         for id in range(len(table.index)):
             if (table.index[id] == 'control' or 'variation' in table.index[id]):
@@ -123,7 +122,8 @@ class StreamlitApp:
                 )
                 htm_rows += html_content + '\n'
         with open(f"{self._config['htm_folder']}{htm_template}_header.html", 'r') as file:
-            st.session_state[f'{htm_template}_html_content'] = full_html_code + file.read().format(rows=htm_rows)
+            # st.session_state[f'{htm_template}_html_content'] = full_html_code + file.read().format(rows=htm_rows)
+            st.session_state[f'{htm_template}_html_content'] = file.read().format(rows=htm_rows)
 
     def generate_metric_color(self, value, diff, is_positive=True):
         if value >= 0.05:
@@ -134,12 +134,11 @@ class StreamlitApp:
             return 'class="highlight-#ffebe6 confluenceTd" data-highlight-colour="#ffebe6" bgcolor="#ffebe6"'
 
     def build_html_monetization_metrics_content(self, table):
-        full_html_code = """
-        <p class="auto-cursor-target">
-        <strong>Monetization Metrics</strong>
-        </p>
-        \n
-        """
+        # full_html_code = """
+        # <p class="auto-cursor-target">
+        # <strong>Monetization Metrics</strong>
+        # </p>
+        # """
         htm_rows = ''
         for id in range(len(table.index)):
             if table.index[id] == 'pvalue':
@@ -208,8 +207,9 @@ class StreamlitApp:
                 )
                 htm_rows += html_content + '\n'
         with open(f"{self._config['htm_folder']}app_monetization_metrics_header.html", 'r') as file:
-            st.session_state['app_monetization_metrics_html_content'] = full_html_code + file.read().format(rows=htm_rows)
-        print(st.session_state['app_monetization_metrics_html_content'])
+            # st.session_state['app_monetization_metrics_html_content'] = full_html_code + file.read().format(rows=htm_rows)
+            st.session_state['app_monetization_metrics_html_content'] = file.read().format(rows=htm_rows)
+        # print(st.session_state['app_monetization_metrics_html_content'])
         
     def run_calculations(self):
         if self._current_experimnet_name not in self._experiments['name'].values:
